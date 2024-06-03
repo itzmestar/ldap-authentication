@@ -27,7 +27,7 @@ class LDAPAuthenticator:
             else:
                 raise LDAPException("Unable to determine base DN from Root DSE.")
             conn.unbind()
-            print(base_dn)
+            # print(base_dn)
             return base_dn
         except Exception as e:
             print(f"An error occurred while fetching the base DN: {e}")
@@ -69,9 +69,9 @@ class LDAPAuthenticator:
 
 def main():
     parser = argparse.ArgumentParser(description="Check LDAP login credentials.")
-    parser.add_argument("--ldap-server", required=True, help="LDAP server address")
-    parser.add_argument("--email", required=True, help="User email to authenticate")
-    parser.add_argument("--password", required=True, help="User password to authenticate")
+    parser.add_argument("-l", "--ldap-server", required=True, help="LDAP server address")
+    parser.add_argument("-e", "--email", required=True, help="User email to authenticate")
+    parser.add_argument("-p", "--password", required=True, help="User password to authenticate")
 
     args = parser.parse_args()
 
