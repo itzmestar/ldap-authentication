@@ -1,6 +1,7 @@
 import argparse
 from ldap3 import Server, Connection, ALL
 from ldap3.core.exceptions import LDAPBindError, LDAPException
+import re
 
 
 class LDAPAuthenticator:
@@ -8,6 +9,17 @@ class LDAPAuthenticator:
     def __init__(self, ldap_server: str):
         self.ldap_server = ldap_server
         self.ldap_base_dn = self.get_base_dn()
+
+    def extract_org_and_domain(self):
+        pattern = r"ldap://([^/]+)"
+        match = re.search(pattern, self.ldap_server)
+        if match:
+            domain_parts = match.group(1).split('.')
+            if len(domain_parts) >= 2:
+                org = domain_parts[-1]
+                domain = domain_parts[-2]
+                return org, domain
+        return None, None
 
     def get_base_dn(self):
         server = Server(self.ldap_server, get_info=ALL)
@@ -31,20 +43,26 @@ class LDAPAuthenticator:
             return base_dn
         except Exception as e:
             print(f"An error occurred while fetching the base DN: {e}")
+            org, domain = self.extract_org_and_domain()
+            if org and domain:
+                return f"dc={domain},dc={org}"
             return None
 
     @staticmethod
-    def construct_user_dn(email: str, base_dn: str):
+    def construct_user_dn(email: str, base_dn: str, organization: str = ''):
         # Extract the user part of the email
         user = email.split('@')[0]
-        return f'uid={user},ou=users,{base_dn}'
+        if organization:
+            return f'uid={user},ou=Users,o={organization},{base_dn}'
+        else:
+            return f'uid={user},ou=Users,{base_dn}'
 
-    def check_login(self, email: str, password: str):
+    def check_login(self, email: str, password: str, organization: str = ''):
         if not self.ldap_base_dn:
             print("Failed to determine the base DN.")
             return False
 
-        user_dn = self.construct_user_dn(email, self.ldap_base_dn)
+        user_dn = self.construct_user_dn(email, self.ldap_base_dn, organization)
 
         try:
             server = Server(self.ldap_server, get_info=ALL)
@@ -72,12 +90,13 @@ def main():
     parser.add_argument("-l", "--ldap-server", required=True, help="LDAP server address")
     parser.add_argument("-e", "--email", required=True, help="User email to authenticate")
     parser.add_argument("-p", "--password", required=True, help="User password to authenticate")
+    parser.add_argument("-o", "--organization", required=False, help="User organization to authenticate")
 
     args = parser.parse_args()
 
     authenticator = LDAPAuthenticator(ldap_server=args.ldap_server)
 
-    if authenticator.check_login(args.email, args.password):
+    if authenticator.check_login(args.email, args.password, args.organization):
         print("Login successful.")
     else:
         print("Login failed.")
