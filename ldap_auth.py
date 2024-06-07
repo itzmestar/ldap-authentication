@@ -57,6 +57,12 @@ class LDAPAuthenticator:
         else:
             return f'uid={user},ou=Users,{base_dn}'
 
+    def construct_org_dn(self, organization: str = ''):
+        if organization:
+            return f'o={organization},{self.ldap_base_dn}'
+        else:
+            return self.ldap_base_dn
+
     def check_login(self, email: str, password: str, organization: str = ''):
         if not self.ldap_base_dn:
             print("Failed to determine the base DN.")
@@ -84,6 +90,38 @@ class LDAPAuthenticator:
             print(f"An error occurred while connecting to LDAP server: {e}")
             return False
 
+    def list_users(self, email: str, password: str, organization: str = ''):
+        if not self.ldap_base_dn:
+            print("Failed to determine the base DN.")
+            return []
+
+        user_dn = self.construct_user_dn(email, self.ldap_base_dn, organization)
+
+        try:
+            server = Server(self.ldap_server, get_info=ALL)
+            conn = Connection(server, user=user_dn, password=password)
+            conn.open()
+            conn.start_tls()
+            conn.bind()
+            if conn.bound:
+                users = []
+                org_dn = self.construct_org_dn(organization)
+                # print("Successfully authenticated to the LDAP Server")
+                if conn.search(org_dn, '(objectclass=person)'):
+                    # print('search successful')
+                    users = conn.entries
+                conn.unbind()
+                return users
+            else:
+                print("Failed to authenticate to the LDAP Server")
+                return []
+        except LDAPBindError:
+            # print("Invalid credentails")
+            return []
+        except Exception as e:
+            # print(f"An error occurred while connecting to LDAP server: {e}")
+            return []
+
 
 def main():
     parser = argparse.ArgumentParser(description="Check LDAP login credentials.")
@@ -98,6 +136,10 @@ def main():
 
     if authenticator.check_login(args.email, args.password, args.organization):
         print("Login successful.")
+        users = authenticator.list_users(args.email, args.password, args.organization)
+        print("Users List:")
+        for user in users:
+            print(user)
     else:
         print("Login failed.")
 
