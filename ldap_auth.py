@@ -92,7 +92,7 @@ class LDAPAuthenticator:
 
     def list_users(self, email: str, password: str, organization: str = ''):
         if not self.ldap_base_dn:
-            print("Failed to determine the base DN.")
+            # print("Failed to determine the base DN.")
             return []
 
         user_dn = self.construct_user_dn(email, self.ldap_base_dn, organization)
@@ -113,7 +113,7 @@ class LDAPAuthenticator:
                 conn.unbind()
                 return users
             else:
-                print("Failed to authenticate to the LDAP Server")
+                # print("Failed to authenticate to the LDAP Server")
                 return []
         except LDAPBindError:
             # print("Invalid credentails")
